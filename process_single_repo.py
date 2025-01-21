@@ -1,11 +1,12 @@
 # File: process_single_repo.py
 
+import modal
+
+import asyncio
 import argparse
 import json
 import subprocess
 import sys
-import os
-from pathlib import Path
 
 from swebench.inference.make_datasets.create_instance import PATCH_EXAMPLE
 
@@ -67,31 +68,44 @@ async def generate_patch_with_cognee(instance):
 
 async def generate_patch_without_cognee(instance, llm_client):
     instructions = read_query_prompt("patch_gen_instructions.txt")
+
+    print(instructions)
+    print("-----")
+    print(instance)
     answer_prediction = await llm_client.acreate_structured_output(
-        text_input=instance["text"],
+        text_input="dummy context",
         system_prompt=instructions,
         response_model=str,
     )
     return answer_prediction
 
 
-async def process_repo(instance, disable_cognee=False):
+async def process_repo(instance, volume, disable_cognee=True):
     """
     Process a single repository (a single instance).
     """
-    if not disable_cognee:
-        model_patch = await generate_patch_with_cognee(instance)
-        model_name = "with_cognee"
-    else:
-        llm_client = get_llm_client()
-        model_patch = await generate_patch_without_cognee(instance, llm_client)
-        model_name = "without_cognee"
+    print(instance)
 
-    return {
+    model_patch = await generate_patch_with_cognee(instance)
+    model_name = "with_cognee"
+
+    instance_name = instance["instance_id"]
+    filename = f"{instance_name}_{model_name}patch.json"
+
+    result = {
         "instance_id": instance["instance_id"],
         "model_patch": model_patch,
         "model_name_or_path": model_name,
     }
+
+    with open(filename, "w") as f:
+        json.dump(result, f, indent=4)
+    with volume.batch_upload() as batch:
+        batch.put_file(filename, filename)
+
+    print(f"The repo {instance_name} was finished.")
+
+    return None
 
 
 async def main():
@@ -103,7 +117,9 @@ async def main():
     """
     parser = argparse.ArgumentParser(description="Process a single repo from SWE-Bench")
     parser.add_argument("--instance_json", type=str, required=True)
-    parser.add_argument("--disable-cognee", action="store_true", help="Disable Cognee for evaluation")
+    parser.add_argument(
+        "--disable-cognee", action="store_true", help="Disable Cognee for evaluation"
+    )
     args = parser.parse_args()
 
     # Install dependencies if needed
@@ -114,6 +130,7 @@ async def main():
     instance = json.loads(args.instance_json)
 
     # Get the prediction
+    print(instance)
     result = await process_repo(instance, disable_cognee=args.disable_cognee)
 
     # Construct a file name for the single result
@@ -126,7 +143,5 @@ async def main():
     print(f"Finished processing instance_id={instance_id}. Saved to {out_name}")
 
 
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main(), debug=True)
+def entrypoint(instance, disable_cognee=True):
+    asyncio.run(process_repo(instance, disable_cognee), debug=True)
