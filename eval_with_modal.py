@@ -1,4 +1,6 @@
 # File: eval_with_modal.py
+
+import asyncio
 import modal
 import os
 from pathlib import Path
@@ -40,9 +42,7 @@ image = (
 )
 
 
-@app.function(
-    image=image, gpu="T4", concurrency_limit=5, timeout=86400, volumes={"/repo-patches": volume}
-)
+@app.function(image=image, concurrency_limit=5, timeout=86400, volumes={"/repo-patches": volume})
 async def run_single_repo(instance_data: dict, disable_cognee: bool = False):
     import os
     import json
@@ -56,8 +56,15 @@ async def run_single_repo(instance_data: dict, disable_cognee: bool = False):
     return None
 
 
+def get_instance(data_list, key, value):
+    for item in data_list:
+        if key in item and item[key] == value:
+            return item
+    return None
+
+
 @app.local_entrypoint()
-async def main(disable_cognee: bool = False, num_samples: int = 1):
+async def main(disable_cognee: bool = False, num_samples: int = 1, instance="psf__requests-1963"):
     import subprocess
     import json
     import os
@@ -91,9 +98,11 @@ async def main(disable_cognee: bool = False, num_samples: int = 1):
     )
 
     swe_dataset = load_swebench_dataset(dataset_name, split="test")
-    swe_dataset = swe_dataset[:num_samples]
 
-    print(f"Processing {num_samples} samples from {dataset_name}")
+    swe_dataset = [get_instance(swe_dataset, "instance_id", instance)]
+
+    print(f"Processing SWE {instance} instance.")
+
     import pip
 
     # Install required dependencies
@@ -108,3 +117,7 @@ async def main(disable_cognee: bool = False, num_samples: int = 1):
     await asyncio.gather(*tasks)
 
     print("Done!")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -34,7 +34,7 @@ def check_install_package(package_name):
 
 async def generate_patch_with_cognee(instance):
     repo_path = download_github_repo(instance, "../RAW_GIT_REPOS")
-    include_docs = True
+    include_docs = False
     problem_statement = instance["problem_statement"]
     instructions = read_query_prompt("patch_gen_kg_instructions.txt")
 
@@ -83,10 +83,12 @@ async def generate_patch_without_cognee(instance, llm_client):
 async def process_repo(instance, volume, disable_cognee=True):
     """
     Process a single repository (a single instance).
+
     """
     print(instance)
 
     model_patch = await generate_patch_with_cognee(instance)
+
     model_name = "with_cognee"
 
     instance_name = instance["instance_id"]
