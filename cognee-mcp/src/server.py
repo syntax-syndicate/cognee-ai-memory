@@ -5,6 +5,7 @@ import importlib.util
 from contextlib import redirect_stderr, redirect_stdout
 
 # from PIL import Image as PILImage
+from cognee.api.v1.cognify.code_graph_pipeline import run_code_graph_pipeline
 import mcp.types as types
 from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
@@ -63,6 +64,21 @@ async def list_tools() -> list[types.Tool]:
                 "properties": {},
             },
         ),
+        types.Tool(
+            name="codegraph",
+            description="Builds a code graph from source code and optional docs",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repoPath": {"type": "string", "description": "Path to the local repo"},
+                    "includeDocs": {
+                        "type": "boolean",
+                        "description": "Whether to parse docs as well as code. Defaults to true.",
+                    },
+                },
+                "required": ["repoPath"],
+            },
+        ),
     ]
 
 
@@ -87,6 +103,13 @@ async def call_tools(name: str, arguments: dict) -> list[types.TextContent]:
                     await prune()
 
                     return [types.TextContent(type="text", text="Pruned")]
+                elif name == "codegraph":
+                    repo_path = arguments["repoPath"]
+                    include_docs = arguments.get("includeDocs", True)
+
+                    result_str = await codegraph(repo_path, include_docs)
+
+                    return [types.TextContent(type="text", text=result_str)]
     except Exception as e:
         logger.error(f"Error calling tool '{name}': {str(e)}")
         return [types.TextContent(type="text", text=f"Error calling tool '{name}': {str(e)}")]
@@ -120,6 +143,16 @@ async def prune() -> str:
     """Reset the knowledge graph"""
     await cognee.prune.prune_data()
     await cognee.prune.prune_system(metadata=True)
+
+
+async def codegraph(repo_path: str, include_docs: bool = True) -> str:
+    """Build knowledge graph from a repository"""
+    captured_results = []
+
+    async for result in run_code_graph_pipeline(repo_path, include_docs):
+        captured_results.append(str(result))
+
+    return f"CodeGraph pipeline completed. {len(captured_results)} steps processed."
 
 
 async def main():
