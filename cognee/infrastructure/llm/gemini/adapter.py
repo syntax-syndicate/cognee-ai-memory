@@ -45,53 +45,10 @@ class GeminiAdapter(LLMInterface):
                 simplified_prompt = system_prompt
                 response_schema = {"type": "string"}
             else:
-                response_schema = {
-                    "type": "object",
-                    "properties": {
-                        "summary": {"type": "string"},
-                        "description": {"type": "string"},
-                        "nodes": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "type": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "id": {"type": "string"},
-                                    "label": {"type": "string"},
-                                },
-                                "required": ["name", "type", "description", "id", "label"],
-                            },
-                        },
-                        "edges": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "source_node_id": {"type": "string"},
-                                    "target_node_id": {"type": "string"},
-                                    "relationship_name": {"type": "string"},
-                                },
-                                "required": [
-                                    "source_node_id",
-                                    "target_node_id",
-                                    "relationship_name",
-                                ],
-                            },
-                        },
-                    },
-                    "required": ["summary", "description", "nodes", "edges"],
-                }
+                response_schema = response_model.model_json_schema()
 
                 simplified_prompt = f"""
     {system_prompt}
-
-    IMPORTANT: Your response must be a valid JSON object with these required fields:
-    1. summary: A brief summary
-    2. description: A detailed description
-    3. nodes: Array of nodes with name, type, description, id, and label
-    4. edges: Array of edges with source_node_id, target_node_id, and relationship_name
 
     Example structure:
     {{
