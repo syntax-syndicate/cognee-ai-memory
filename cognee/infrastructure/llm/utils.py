@@ -1,15 +1,15 @@
 import logging
 import litellm
 
-from cognee.infrastructure.databases.vector import get_vector_engine
-from cognee.infrastructure.llm.get_llm_client import get_llm_client
+from .get_llm_client import get_llm_client
+from ..databases.vector.embeddings.get_embedding_engine import get_embedding_engine
 
 logger = logging.getLogger(__name__)
 
 
 def get_max_chunk_tokens():
     # Calculate max chunk size based on the following formula
-    embedding_engine = get_vector_engine().embedding_engine
+    embedding_engine = get_embedding_engine()
     llm_client = get_llm_client()
 
     # We need to make sure chunk size won't take more than half of LLM max context token size
@@ -54,7 +54,8 @@ async def test_llm_connection():
 
 async def test_embedding_connection():
     try:
-        await get_vector_engine().embedding_engine.embed_text("test")
+        embedding_engine = get_embedding_engine()
+        await embedding_engine.embed_text("test")
     except Exception as e:
         logger.error(e)
         logger.error("Connection to Embedding handler could not be established.")

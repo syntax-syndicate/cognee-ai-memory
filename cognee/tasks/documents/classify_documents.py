@@ -49,7 +49,7 @@ EXTENSION_TO_DOCUMENT_CLASS = {
 }
 
 
-async def classify_documents(data_documents: list[Data]) -> list[Document]:
+def classify_documents(data_documents: list[Data]) -> list[Document]:
     """
     Classifies a list of data items into specific document types based on file extensions.
 

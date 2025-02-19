@@ -11,7 +11,7 @@ from cognee.infrastructure.llm.tokenizer.HuggingFace import HuggingFaceTokenizer
 from cognee.infrastructure.llm.tokenizer.Mistral import MistralTokenizer
 from cognee.infrastructure.llm.tokenizer.TikToken import TikTokenTokenizer
 
-litellm.set_verbose = False
+litellm.set_verbose = True
 logger = logging.getLogger("LiteLLMEmbeddingEngine")
 
 

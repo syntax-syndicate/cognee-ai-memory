@@ -1,6 +1,5 @@
 from io import StringIO
 
-from cognee.modules.chunking.TextChunker import TextChunker
 from cognee.modules.data.exceptions import UnstructuredLibraryImportError
 
 from .Document import Document

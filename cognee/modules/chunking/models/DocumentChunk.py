@@ -1,8 +1,7 @@
 from typing import List
 
-from cognee.infrastructure.engine import DataPoint
-from cognee.modules.data.processing.document_types import Document
-from cognee.modules.engine.models import Entity
+from cognee.infrastructure.engine.models.DataPoint import DataPoint
+from ...data.processing.document_types.Document import Document
 
 
 class DocumentChunk(DataPoint):
@@ -12,6 +11,6 @@ class DocumentChunk(DataPoint):
     chunk_index: int
     cut_type: str
     is_part_of: Document
-    contains: List[Entity] = None
+    contains: List[DataPoint] = None
 
     metadata: dict = {"index_fields": ["text"]}

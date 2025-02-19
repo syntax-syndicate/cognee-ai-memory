@@ -1,1 +1,1 @@
-from .cognify_v2 import cognify
+from .cognify_v3 import cognify

@@ -28,8 +28,6 @@ if monitoring == MonitoringTool.LANGFUSE:
 
 
 logger = logging.getLogger("code_graph_pipeline")
-update_status_lock = asyncio.Lock()
-
 
 @observe
 async def run_code_graph_pipeline(repo_path, include_docs=False):

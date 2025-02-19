@@ -232,9 +232,6 @@ async def render_graph(
 #     return df.replace([np.inf, -np.inf, np.nan], None)
 
 
-logging.basicConfig(level=logging.INFO)
-
-
 async def convert_to_serializable_graph(G):
     """
     Convert a graph into a serializable format with stringified node and edge attributes.

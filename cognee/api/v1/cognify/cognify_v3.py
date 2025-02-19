@@ -1,15 +1,19 @@
 import asyncio
+from dataclasses import dataclass
 import logging
 from typing import Union
 
+import logfire
 from pydantic import BaseModel
+from pydantic_graph import BaseNode, End, Graph, GraphRunContext
 
 from cognee.infrastructure.llm import get_max_chunk_tokens
+from cognee.modules.chunking.models import DocumentChunk
 from cognee.modules.cognify.config import get_cognify_config
 from cognee.modules.data.methods import get_datasets, get_datasets_by_name
 from cognee.modules.data.methods.get_dataset_data import get_dataset_data
 from cognee.modules.data.models import Data, Dataset
-from cognee.modules.pipelines import run_tasks
+from cognee.modules.data.processing.document_types import Document
 from cognee.modules.pipelines.models import PipelineRunStatus
 from cognee.modules.pipelines.operations.get_pipeline_status import get_pipeline_status
 from cognee.modules.pipelines.tasks.Task import Task
@@ -25,9 +29,38 @@ from cognee.tasks.documents import (
 from cognee.tasks.graph import extract_graph_from_data
 from cognee.tasks.storage import add_data_points
 from cognee.tasks.summarization import summarize_text
-from cognee.modules.chunking.TextChunker import TextChunker
 
-logger = logging.getLogger("cognify.v2")
+logger = logging.getLogger("cognify.v3")
+
+@dataclass
+class RunState:
+    user: User
+
+@dataclass
+class GenerateKnowledgeGraph(BaseNode[RunState]):
+    data_chunks: list[DocumentChunk]
+
+    async def run(self, context: GraphRunContext[RunState]) -> End:
+        data_points, data_edges = await extract_graph_from_data(data_chunks=self.data_chunks, graph_model=KnowledgeGraph)
+        await add_data_points(data_points, data_edges)
+
+        return End("Ingested")
+
+
+@dataclass
+class GetDocumentChunks(BaseNode[RunState]):
+    documents: list[Document]
+
+    async def run(self, context: GraphRunContext[RunState]) -> GenerateKnowledgeGraph:
+        classified_documents = classify_documents(self.documents)
+
+        await check_permissions_on_documents(classified_documents, context.state.user, ["write"])
+
+        document_chunks = []
+        async for chunk in extract_chunks_from_documents(classified_documents, max_chunk_tokens=get_max_chunk_tokens()):
+            document_chunks.append(chunk)
+
+        return GenerateKnowledgeGraph(document_chunks)
 
 
 async def cognify(
@@ -91,14 +124,26 @@ async def run_cognify_pipeline(dataset: Dataset, user: User, tasks: list[Task]):
             if not isinstance(task, Task):
                 raise ValueError(f"Task {task} is not an instance of Task")
 
-        pipeline_run = run_tasks(tasks, dataset.id, data_documents, "cognify_pipeline")
-        pipeline_run_status = None
+        # pipeline_run = run_tasks(tasks, dataset.id, data_documents, "cognify_pipeline")
+        # pipeline_run_status = None
 
-        async for run_status in pipeline_run:
-            pipeline_run_status = run_status
+        # async for run_status in pipeline_run:
+        #     pipeline_run_status = run_status
+
+        execution_graph = Graph(nodes=[GetDocumentChunks, GenerateKnowledgeGraph])
+
+        execution_graph.mermaid_save("./execution_graph.png")
+
+        result, history = await execution_graph.run(
+            GetDocumentChunks(documents=data_documents),
+            state=RunState(user=user),
+        )
 
         send_telemetry("cognee.cognify EXECUTION COMPLETED", user.id)
-        return pipeline_run_status
+        print(history)
+
+        return result
+        # return pipeline_run_status
 
     except Exception as error:
         send_telemetry("cognee.cognify EXECUTION ERRORED", user.id)
@@ -121,9 +166,7 @@ async def get_default_tasks(
             Task(classify_documents),
             Task(check_permissions_on_documents, user=user, permissions=["write"]),
             Task(
-                extract_chunks_from_documents,
-                max_chunk_tokens=get_max_chunk_tokens(),
-                chunker=TextChunker,
+                extract_chunks_from_documents, max_chunk_tokens=get_max_chunk_tokens()
             ),  # Extract text chunks based on the document type.
             Task(
                 extract_graph_from_data, graph_model=graph_model, task_config={"batch_size": 10}
