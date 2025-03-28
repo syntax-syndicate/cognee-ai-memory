@@ -15,6 +15,26 @@ class LLMInterface(Protocol):
     ) -> BaseModel:
         """To get structured output, import/call this function"""
         raise NotImplementedError
+    
+    def check_rate_limit(self) -> bool:
+        """
+        Check if the current request is allowed by the rate limiter.
+        Returns True if the request is allowed, False otherwise.
+        
+        This is an optional method that may be implemented by adapters
+        that support rate limiting.
+        """
+        return True
+    
+    async def acheck_rate_limit(self) -> bool:
+        """
+        Asynchronously check if the current request is allowed by the rate limiter.
+        Returns True if the request is allowed, False otherwise.
+        
+        This is an optional method that may be implemented by adapters
+        that support rate limiting.
+        """
+        return True
 
     def show_prompt(self, text_input: str, system_prompt: str) -> str:
         """Format and display the prompt for a user query."""
